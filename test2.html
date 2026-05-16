@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tables & Photo Uploader</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen pb-12">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md mb-8">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wide">Data & Media Dashboard</h1>
+            <span class="text-sm bg-blue-700 px-3 py-1 rounded-full text-blue-100">Local App</span>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- LEFT/CENTER: Table Section -->
+        <section class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-800">Expense & Inventory Table</h2>
+                <button onclick="addRow()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                    + Add Row
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
+                            <th class="p-3 rounded-l-lg">Item Name</th>
+                            <th class="p-3">Quantity</th>
+                            <th class="p-3">Price ($)</th>
+                            <th class="p-3 text-right rounded-r-lg">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Default Row -->
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td class="p-3"><input type="text" value="Sample Item" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
+                            <td class="p-3"><input type="number" value="2" oninput="calculateTotal()" class="qty-input w-20 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
+                            <td class="p-3"><input type="number" value="25.00" oninput="calculateTotal()" class="price-input w-24 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
+                            <td class="p-3 text-right"><button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Summary Footer -->
+            <div class="mt-4 p-4 bg-gray-50 rounded-lg flex justify-between items-center font-bold text-gray-700">
+                <span>Total Value:</span>
+                <span id="total-cost" class="text-blue-600 text-lg">$50.00</span>
+            </div>
+        </section>
+
+        <!-- RIGHT: Photo Upload Section -->
+        <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Photo Gallery</h2>
+            
+            <!-- Upload Box -->
+            <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 transition-colors relative cursor-pointer group mb-6">
+                <input type="file" id="file-input" multiple accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleFiles(this.files)">
+                <div class="space-y-2">
+                    <svg class="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 448 512">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M246.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-128 128c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 101.3V448c0 17.7 14.3 32 32 32s32-14.3 32-32V101.3l73.4 73.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-128-128z"/>
+                    </svg>
+                    <p class="text-sm font-medium text-gray-600">Click or Drag & Drop images</p>
+                    <p class="text-xs text-gray-400">PNG, JPG, GIF up to 10MB</p>
+                </div>
+            </div>
+
+            <!-- Image Preview Grid -->
+            <div id="preview-grid" class="grid grid-cols-3 gap-2">
+                <!-- Uploaded images will appear here dynamically -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Lightbox Modal for viewing photos full screen -->
+    <div id="lightbox" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4" onclick="closeLightbox()">
+        <img id="lightbox-img" class="max-w-full max-h-[90vh] rounded shadow-2xl" src="" alt="Enlarged view">
+    </div>
+
+    <!-- JavaScript logic -->
+    <script>
+        // --- TABLE LOGIC ---
+        function addRow() {
+            const tbody = document.getElementById('table-body');
+            const row = document.createElement('tr');
+            row.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+            row.innerHTML = `
+                <td class="p-3"><input type="text" placeholder="New Item" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
+                <td class="p-3"><input type="number" value="1" oninput="calculateTotal()" class="qty-input w-20 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
+                <td class="p-3"><input type="number" value="0.00" oninput="calculateTotal()" class="price-input w-24 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
+                <td class="p-3 text-right"><button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button></td>
+            `;
+            tbody.appendChild(row);
+            calculateTotal();
+        }
+
+        function deleteRow(button) {
+            button.closest('tr').remove();
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            let total = 0;
+            const qtys = document.querySelectorAll('.qty-input');
+            const prices = document.querySelectorAll('.price-input');
+            
+            qtys.forEach((qtyElement, index) => {
+                const qty = parseFloat(qtyElement.value) || 0;
+                const price = parseFloat(prices[index].value) || 0;
+                total += qty * price;
+            });
+            
+            document.getElementById('total-cost').innerText = `$${total.toFixed(2)}`;
+        }
+
+        // --- PHOTO UPLOADER LOGIC ---
+        function handleFiles(files) {
+            const grid = document.getElementById('preview-grid');
+            
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) return; // skip non-image files
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const container = document.createElement('div');
+                    container.className = "relative aspect-square bg-gray-100 rounded-lg overflow-hidden group shadow-sm border border-gray-200";
+                    
+                    container.innerHTML = `
+                        <img src="${e.target.result}" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox('${e.target.result}')">
+                        <button onclick="this.parentElement.remove()" class="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white text-xs rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            ✕
+                        </button>
+                    `;
+                    grid.appendChild(container);
+                }
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- LIGHTBOX LOGIC ---
+        function openLightbox(src) {
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-img');
+            img.src = src;
+            lightbox.classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
