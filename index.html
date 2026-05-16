@@ -1,161 +1,427 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tables & Photo Uploader</title>
-    <!-- Tailwind CSS for modern styling -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Pokemon Scan - Cari Tambal Ban & Pom Bensin</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #1a1a2e;
+            min-height: 100vh;
+        }
+
+        /* Welcome / Scanning Screen */
+        #scan-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+
+        .scan-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 30px;
+            text-align: center;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .scan-card h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .scan-card h1 i {
+            color: #ffcc00;
+        }
+
+        .scanning-animation {
+            width: 100px;
+            height: 100px;
+            margin: 20px auto;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #ffcc00;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #scan-status {
+            font-size: 1.2rem;
+            margin: 20px 0;
+        }
+
+        #btn-start-scan {
+            background: #ffcc00;
+            color: #1a1a2e;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+
+        #btn-start-scan:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255,204,0,0.5);
+        }
+
+        /* Main App */
+        #main-app {
+            display: none;
+        }
+
+        header {
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            background: #2c2c54;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #ffcc00;
+            color: #1a1a2e;
+        }
+
+        #map {
+            height: calc(100vh - 70px);
+            width: 100%;
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 15px;
+            border-radius: 20px;
+            z-index: 1000;
+            font-size: 14px;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .filter-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-50 font-sans min-h-screen pb-12">
+<body>
 
-    <!-- Navbar -->
-    <nav class="bg-blue-600 text-white p-4 shadow-md mb-8">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-wide">Data & Media Dashboard</h1>
-            <span class="text-sm bg-blue-700 px-3 py-1 rounded-full text-blue-100">Local App</span>
-        </div>
-    </nav>
-
-    <main class="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        <!-- LEFT/CENTER: Table Section -->
-        <section class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-800">Expense & Inventory Table</h2>
-                <button onclick="addRow()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                    + Add Row
-                </button>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
-                            <th class="p-3 rounded-l-lg">Item Name</th>
-                            <th class="p-3">Quantity</th>
-                            <th class="p-3">Price ($)</th>
-                            <th class="p-3 text-right rounded-r-lg">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body">
-                        <!-- Default Row -->
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td class="p-3"><input type="text" value="Sample Item" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
-                            <td class="p-3"><input type="number" value="2" oninput="calculateTotal()" class="qty-input w-20 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
-                            <td class="p-3"><input type="number" value="25.00" oninput="calculateTotal()" class="price-input w-24 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
-                            <td class="p-3 text-right"><button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Table Summary Footer -->
-            <div class="mt-4 p-4 bg-gray-50 rounded-lg flex justify-between items-center font-bold text-gray-700">
-                <span>Total Value:</span>
-                <span id="total-cost" class="text-blue-600 text-lg">$50.00</span>
-            </div>
-        </section>
-
-        <!-- RIGHT: Photo Upload Section -->
-        <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Photo Gallery</h2>
-            
-            <!-- Upload Box -->
-            <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 transition-colors relative cursor-pointer group mb-6">
-                <input type="file" id="file-input" multiple accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleFiles(this.files)">
-                <div class="space-y-2">
-                    <svg class="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 448 512">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M246.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-128 128c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 101.3V448c0 17.7 14.3 32 32 32s32-14.3 32-32V101.3l73.4 73.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-128-128z"/>
-                    </svg>
-                    <p class="text-sm font-medium text-gray-600">Click or Drag & Drop images</p>
-                    <p class="text-xs text-gray-400">PNG, JPG, GIF up to 10MB</p>
-                </div>
-            </div>
-
-            <!-- Image Preview Grid -->
-            <div id="preview-grid" class="grid grid-cols-3 gap-2">
-                <!-- Uploaded images will appear here dynamically -->
-            </div>
-        </section>
-    </main>
-
-    <!-- Lightbox Modal for viewing photos full screen -->
-    <div id="lightbox" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4" onclick="closeLightbox()">
-        <img id="lightbox-img" class="max-w-full max-h-[90vh] rounded shadow-2xl" src="" alt="Enlarged view">
+<!-- SCREEN SCANNING -->
+<div id="scan-screen">
+    <div class="scan-card">
+        <h1><i class="fas fa-map-marked-alt"></i> SCAN AREA</h1>
+        <div class="scanning-animation"></div>
+        <div id="scan-status">📍 Siap scan lokasi...</div>
+        <button id="btn-start-scan"><i class="fas fa-search-location"></i> Mulai Scan Sekarang</button>
     </div>
+</div>
 
-    <!-- JavaScript logic -->
-    <script>
-        // --- TABLE LOGIC ---
-        function addRow() {
-            const tbody = document.getElementById('table-body');
-            const row = document.createElement('tr');
-            row.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
-            row.innerHTML = `
-                <td class="p-3"><input type="text" placeholder="New Item" class="w-full bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
-                <td class="p-3"><input type="number" value="1" oninput="calculateTotal()" class="qty-input w-20 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
-                <td class="p-3"><input type="number" value="0.00" oninput="calculateTotal()" class="price-input w-24 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none py-1"></td>
-                <td class="p-3 text-right"><button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700 font-medium text-sm">Delete</button></td>
+<!-- MAIN APP -->
+<div id="main-app">
+    <header>
+        <h2><i class="fas fa-fire"></i> Pokemon Scan - Tambal & Pom</h2>
+        <div class="filter-buttons">
+            <button class="filter-btn active" data-filter="all">Semua</button>
+            <button class="filter-btn" data-filter="tambal">🔧 Tambal Ban</button>
+            <button class="filter-btn" data-filter="pom">⛽ Pom Bensin</button>
+        </div>
+    </header>
+    <div id="map"></div>
+    <div class="info-panel" id="info-panel">
+        🔍 Klik marker buat liat detail
+    </div>
+</div>
+
+<script>
+    let map;
+    let markers = [];
+    let currentFilter = "all";
+    let foundLocations = []; // hasil scan dari OSM
+
+    // ========== FUNGSI SCAN PAKE OVERPASS API (OpenStreetMap) ==========
+    async function scanNearby(lat, lng, radius = 3000) {
+        const overpassUrl = "https://overpass-api.de/api/interpreter";
+        
+        // Query buat cari Pom Bensin (amenity=fuel) dan Tambal Ban (service:tyres atau shop=tyres)
+        const query = `
+            [out:json];
+            (
+              node["amenity"="fuel"](around:${radius},${lat},${lng});
+              way["amenity"="fuel"](around:${radius},${lat},${lng});
+              node["shop"="tyres"](around:${radius},${lat},${lng});
+              node["service:tyres"="yes"](around:${radius},${lat},${lng});
+              node["repair"="tyres"](around:${radius},${lat},${lng});
+            );
+            out body;
+        `;
+        
+        try {
+            const response = await fetch(overpassUrl, {
+                method: 'POST',
+                body: query,
+                headers: { 'Content-Type': 'text/plain' }
+            });
+            const data = await response.json();
+            return processOSMData(data.elements || [], lat, lng);
+        } catch (error) {
+            console.error("Gagal scan:", error);
+            return [];
+        }
+    }
+
+    function processOSMData(elements, userLat, userLng) {
+        const results = [];
+        
+        elements.forEach(el => {
+            let type = null;
+            let name = el.tags?.name || "Tidak ada nama";
+            let amenity = el.tags?.amenity;
+            let shop = el.tags?.shop;
+            let service = el.tags?.["service:tyres"];
+            
+            // Tentukan kategori
+            if (amenity === "fuel") {
+                type = "pom";
+                name = name + (name.includes("SPBU") ? "" : " (SPBU)");
+            } else if (shop === "tyres" || service === "yes" || el.tags?.repair === "tyres") {
+                type = "tambal";
+                name = name + " - Tambal Ban";
+            } else {
+                return; // skip kalo ga cocok
+            }
+            
+            // Dapetin koordinat
+            let lat = el.lat || (el.center?.lat);
+            let lon = el.lon || (el.center?.lon);
+            if (!lat || !lon) return;
+            
+            // Hitung jarak dari user
+            const distance = getDistanceFromLatLonInKm(userLat, userLng, lat, lon);
+            
+            results.push({
+                id: el.id,
+                name: name,
+                category: type,
+                lat: lat,
+                lng: lon,
+                address: el.tags?.["addr:street"] || el.tags?.["addr:full"] || "Alamat tidak tersedia",
+                distance: distance,
+                phone: el.tags?.phone || "-",
+                opening_hours: el.tags?.opening_hours || "Tidak diketahui"
+            });
+        });
+        
+        // Urutin berdasarkan jarak terdekat
+        results.sort((a, b) => a.distance - b.distance);
+        return results;
+    }
+
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = deg2rad(lat2 - lat1);
+        const dLon = deg2rad(lon2 - lon1);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    function deg2rad(deg) {
+        return deg * (Math.PI/180);
+    }
+
+    // Tampilkan marker di map
+    function showMarkers() {
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        
+        let filtered = foundLocations;
+        if (currentFilter !== "all") {
+            filtered = foundLocations.filter(loc => loc.category === currentFilter);
+        }
+        
+        filtered.forEach(loc => {
+            const categoryIcon = loc.category === "pom" ? "⛽" : "🔧";
+            const popupContent = `
+                <div style="min-width: 200px;">
+                    <b>${categoryIcon} ${loc.name}</b><br>
+                    📍 ${loc.address}<br>
+                    📏 Jarak: ${loc.distance.toFixed(2)} km<br>
+                    📞 Telepon: ${loc.phone}<br>
+                    🕒 Jam buka: ${loc.opening_hours}<br>
+                    <button onclick="window.open('https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}', '_blank')" 
+                        style="margin-top:8px; background:#ffcc00; border:none; padding:5px 12px; border-radius:20px; cursor:pointer;">
+                        🗺️ Navigasi
+                    </button>
+                </div>
             `;
-            tbody.appendChild(row);
-            calculateTotal();
-        }
-
-        function deleteRow(button) {
-            button.closest('tr').remove();
-            calculateTotal();
-        }
-
-        function calculateTotal() {
-            let total = 0;
-            const qtys = document.querySelectorAll('.qty-input');
-            const prices = document.querySelectorAll('.price-input');
             
-            qtys.forEach((qtyElement, index) => {
-                const qty = parseFloat(qtyElement.value) || 0;
-                const price = parseFloat(prices[index].value) || 0;
-                total += qty * price;
+            const marker = L.marker([loc.lat, loc.lng]).addTo(map)
+                .bindPopup(popupContent);
+            
+            marker.on('click', () => {
+                document.getElementById('info-panel').innerHTML = `📍 ${loc.name}<br>📏 ${loc.distance.toFixed(2)} km dari lokasi Anda`;
             });
             
-            document.getElementById('total-cost').innerText = `$${total.toFixed(2)}`;
+            markers.push(marker);
+        });
+        
+        if (filtered.length > 0) {
+            const bounds = L.latLngBounds(filtered.map(l => [l.lat, l.lng]));
+            map.fitBounds(bounds);
         }
+        
+        document.getElementById('info-panel').innerHTML = `✅ Ditemukan ${filtered.length} tempat (${foundLocations.length} total dalam radius 3km)`;
+    }
 
-        // --- PHOTO UPLOADER LOGIC ---
-        function handleFiles(files) {
-            const grid = document.getElementById('preview-grid');
+    // MAIN SCAN PROCESS
+    async function startScan() {
+        const statusDiv = document.getElementById('scan-status');
+        const startBtn = document.getElementById('btn-start-scan');
+        
+        if (!navigator.geolocation) {
+            statusDiv.innerHTML = "❌ Browser lo ga support GPS!";
+            return;
+        }
+        
+        startBtn.disabled = true;
+        statusDiv.innerHTML = "📡 Minta izin lokasi...";
+        
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
             
-            Array.from(files).forEach(file => {
-                if (!file.type.startsWith('image/')) return; // skip non-image files
+            statusDiv.innerHTML = "🔄 Scanning area sekitar... (pake OpenStreetMap)";
+            
+            // Scan pake Overpass API
+            const results = await scanNearby(lat, lng, 3000);
+            foundLocations = results;
+            
+            if (results.length === 0) {
+                statusDiv.innerHTML = "⚠️ Ga nemu tambal/pom di radius 3km. Coba pindah lokasi atau zoom out.";
+                setTimeout(() => {
+                    document.getElementById('scan-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('scan-screen').style.display = 'none';
+                        document.getElementById('main-app').style.display = 'block';
+                        initMapWithMock(lat, lng);
+                    }, 500);
+                }, 2000);
+            } else {
+                statusDiv.innerHTML = `🎉 Ditemukan ${results.length} tempat! Masukin ke maps...`;
                 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const container = document.createElement('div');
-                    container.className = "relative aspect-square bg-gray-100 rounded-lg overflow-hidden group shadow-sm border border-gray-200";
-                    
-                    container.innerHTML = `
-                        <img src="${e.target.result}" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox('${e.target.result}')">
-                        <button onclick="this.parentElement.remove()" class="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white text-xs rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            ✕
-                        </button>
-                    `;
-                    grid.appendChild(container);
-                }
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // --- LIGHTBOX LOGIC ---
-        function openLightbox(src) {
-            const lightbox = document.getElementById('lightbox');
-            const img = document.getElementById('lightbox-img');
-            img.src = src;
-            lightbox.classList.remove('hidden');
-        }
-
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.add('hidden');
-        }
-    </script>
+                setTimeout(() => {
+                    document.getElementById('scan-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('scan-screen').style.display = 'none';
+                        document.getElementById('main-app').style.display = 'block';
+                        initMapWithResults(lat, lng);
+                    }, 500);
+                }, 1500);
+            }
+        }, (error) => {
+            statusDiv.innerHTML = "❌ Gagal dapet lokasi. Izinin GPS dan reload!";
+            startBtn.disabled = false;
+            console.error(error);
+        });
+    }
+    
+    function initMapWithResults(lat, lng) {
+        map = L.map('map').setView([lat, lng], 14);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        
+        // Tambah marker lokasi user
+        L.marker([lat, lng], {
+            icon: L.divIcon({ html: '<div style="background:#ffcc00; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>', className: 'user-marker' })
+        }).addTo(map).bindPopup("📍 Lokasi Anda");
+        
+        showMarkers();
+    }
+    
+    function initMapWithMock(lat, lng) {
+        map = L.map('map').setView([lat, lng], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        
+        L.marker([lat, lng]).addTo(map).bindPopup("📍 Anda di sini (tidak ada hasil scan)");
+    }
+    
+    // Event listeners
+    document.getElementById('btn-start-scan').onclick = startScan;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.getAttribute('data-filter');
+            if (map) showMarkers();
+        };
+    });
+</script>
 </body>
 </html>
