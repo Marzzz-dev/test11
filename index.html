@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>TireTracker - Database Live dari Gist</title>
+    <title>TireTracker - Map Bisa Digerakin!</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { height: 100vh; overflow: hidden; background: #0a0a0a; }
-        #map { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #map { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+            cursor: grab;
+        }
+        #map:active { cursor: grabbing; }
         
         .navbar {
             position: fixed; top: 16px; left: 16px; right: 16px; z-index: 20;
@@ -23,44 +27,268 @@
         
         .search-container {
             display: flex; align-items: center; background: rgba(0,0,0,0.6); border-radius: 40px;
-            padding: 4px 12px; min-width: 200px; flex: 1; max-width: 300px;
+            padding: 4px 12px; min-width: 180px; flex: 1; max-width: 260px;
         }
         .search-container input { background: transparent; border: none; padding: 8px 12px; color: white; outline: none; width: 100%; }
         .search-container i { color: #ffcc00; }
         
-        .filter-group { display: flex; gap: 8px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 40px; }
-        .filter-btn { background: transparent; border: none; padding: 6px 16px; border-radius: 30px; color: white; cursor: pointer; transition: 0.2s; }
+        .filter-group { display: flex; gap: 6px; background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 40px; }
+        .filter-btn { background: transparent; border: none; padding: 5px 14px; border-radius: 30px; color: white; cursor: pointer; font-size: 0.85rem; }
         .filter-btn.active { background: #ffcc00; color: #000; font-weight: bold; }
         
-        .icon-btn { background: rgba(0,0,0,0.7); border: none; width: 40px; height: 40px; border-radius: 50%; color: white; cursor: pointer; transition: 0.2s; }
+        .nav-actions { display: flex; gap: 8px; }
+        .icon-btn { background: rgba(0,0,0,0.7); border: none; width: 40px; height: 40px; border-radius: 50%; color: white; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .icon-btn:hover { background: #ffcc00; color: #000; }
         
         .bottom-sheet {
             position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,15,0.95);
             backdrop-filter: blur(20px); border-radius: 28px 28px 0 0; border-top: 1px solid rgba(255,255,255,0.1);
-            z-index: 15; max-height: 38%; overflow-y: auto; padding: 16px; color: white;
+            z-index: 15; max-height: 35%; overflow-y: auto; padding: 16px; color: white;
+            transition: 0.3s;
         }
-        .bottom-sheet-header { margin-bottom: 12px; font-weight: bold; font-size: 1rem; }
+        .bottom-sheet-header { margin-bottom: 12px; font-weight: bold; display: flex; justify-content: space-between; }
         .result-list { display: flex; flex-direction: column; gap: 10px; }
-        .result-item { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
-        .result-item:hover { background: rgba(255,204,0,0.2); }
+        .result-item { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .result-item:active { background: rgba(255,204,0,0.3); }
         .result-info { flex: 1; }
-        .result-info h4 { font-size: 1rem; margin-bottom: 4px; }
+        .result-info h4 { font-size: 0.95rem; margin-bottom: 4px; }
         .result-info p { font-size: 0.7rem; opacity: 0.7; }
-        .nav-btn { background: #ffcc00; border: none; padding: 6px 12px; border-radius: 30px; cursor: pointer; font-weight: bold; color: #000; }
+        .nav-btn { background: #ffcc00; border: none; padding: 6px 12px; border-radius: 30px; cursor: pointer; font-weight: bold; color: #000; font-size: 0.7rem; }
         
-        .toast { position: fixed; bottom: 100px; left: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #ffcc00; text-align: center; padding: 12px; border-radius: 60px; z-index: 35; animation: fadeOut 2s ease forwards; }
+        .toast { position: fixed; bottom: 100px; left: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #ffcc00; text-align: center; padding: 12px; border-radius: 60px; z-index: 35; animation: fadeOut 2s ease forwards; pointer-events: none; }
         @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
         
+        /* biar geser map gak kebablasan */
+        .leaflet-container { touch-action: pan-x pan-y; }
+        
         @media (max-width: 768px) {
-            .navbar { flex-direction: column; align-items: stretch; }
+            .navbar { flex-direction: column; align-items: stretch; border-radius: 30px; }
             .search-container { max-width: 100%; }
             .filter-group { justify-content: center; }
             .nav-actions { justify-content: center; }
+            .bottom-sheet { max-height: 40%; }
+            .result-info h4 { font-size: 0.85rem; }
         }
     </style>
 </head>
 <body>
+
+<div id="map"></div>
+
+<div class="navbar">
+    <div class="logo"><i class="fas fa-tire"></i> TireTracker</div>
+    <div class="search-container"><i class="fas fa-search"></i><input type="text" id="search-input" placeholder="Cari nama / kota..."></div>
+    <div class="filter-group">
+        <button class="filter-btn active" data-filter="all">Semua</button>
+        <button class="filter-btn" data-filter="tambal">🔧 Tambal</button>
+        <button class="filter-btn" data-filter="pom">⛽ Pom</button>
+    </div>
+    <div class="nav-actions">
+        <button class="icon-btn" id="locate-btn" title="Lokasi Saya"><i class="fas fa-location-dot"></i></button>
+        <button class="icon-btn" id="reset-view-btn" title="Reset Peta"><i class="fas fa-globe"></i></button>
+    </div>
+</div>
+
+<div class="bottom-sheet" id="bottom-sheet">
+    <div class="bottom-sheet-header">
+        <span>📍 <span id="result-count">0</span> tempat terdekat (radius <span id="radius-display">5</span> km)</span>
+        <span style="font-size:11px; opacity:0.6;">⬅️ Geser map bebas</span>
+    </div>
+    <div class="result-list" id="result-list"></div>
+</div>
+
+<script>
+    // ========== GIST URL LO (PUBLIC) ==========
+    const DATA_URL = "https://gist.githubusercontent.com/Marzzz-dev/cc5b67fb4a8e692f61f03ead9f9e4f11/raw/dcc445445995d5c0a7c141ee6a0c5c954df647ba/data_lokasi.json";
+    
+    let locations = [];
+    let map, markers = [];
+    let userLat = -7.3575, userLng = 112.7521; // default surabaya
+    let currentFilter = "all";
+    let radiusKm = 5;
+    let searchQuery = "";
+    let allMarkersBounds = null; // buat reset view
+    
+    // Load data dari Gist
+    async function loadData() {
+        try {
+            showToast("📡 Mengambil data dari server...");
+            const response = await fetch(DATA_URL);
+            if (!response.ok) throw new Error("Gagal fetch");
+            const data = await response.json();
+            locations = data;
+            showToast(`✅ ${locations.length} lokasi dimuat! Geser map bebas!`);
+            console.log("Data loaded:", locations.length);
+            
+            // hitung bounds semua lokasi (buat reset view)
+            if (locations.length > 0) {
+                const lats = locations.map(l => l.lat);
+                const lngs = locations.map(l => l.lng);
+                allMarkersBounds = L.latLngBounds([
+                    [Math.min(...lats), Math.min(...lngs)],
+                    [Math.max(...lats), Math.max(...lngs)]
+                ]);
+            }
+            updateUI();
+        } catch (error) {
+            console.error(error);
+            showToast("❌ Gagal muat data. Cek koneksi.");
+            locations = [];
+            updateUI();
+        }
+    }
+    
+    // Hitung jarak
+    function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) ** 2 +
+                  Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                  Math.sin(dLon/2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    
+    function getFilteredLocations() {
+        let filtered = locations.map(loc => ({
+            ...loc,
+            distance: haversine(userLat, userLng, loc.lat, loc.lng)
+        })).filter(loc => loc.distance <= radiusKm);
+        
+        if (currentFilter !== "all") {
+            filtered = filtered.filter(loc => loc.category === currentFilter);
+        }
+        
+        if (searchQuery.trim() !== "") {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(loc => 
+                loc.name.toLowerCase().includes(q) || 
+                (loc.city && loc.city.toLowerCase().includes(q))
+            );
+        }
+        return filtered.sort((a,b) => a.distance - b.distance);
+    }
+    
+    // Update MARKERS & BOTTOM SHEET (tanpa paksa gerakin map)
+    function updateUI() {
+        const filtered = getFilteredLocations();
+        
+        // bottom sheet
+        document.getElementById("result-count").innerText = filtered.length;
+        document.getElementById("radius-display").innerText = radiusKm;
+        const resultList = document.getElementById("result-list");
+        
+        if (filtered.length === 0) {
+            resultList.innerHTML = `<div style="text-align:center; padding:20px;">😞 Tidak ada dalam radius ${radiusKm} km<br><small>Coba geser map atau perkecil radius di pengaturan nanti</small></div>`;
+        } else {
+            resultList.innerHTML = filtered.map(loc => {
+                const icon = loc.category === "pom" ? "⛽" : "🔧";
+                const sub = loc.subtype ? ` • ${loc.subtype.replace(/_/g, " ")}` : "";
+                return `
+                    <div class="result-item" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}')">
+                        <div class="result-info">
+                            <h4>${icon} ${loc.name}${sub}</h4>
+                            <p>${loc.city || ""} • ${loc.address.substring(0, 35)} • ${loc.distance.toFixed(1)} km • ${loc.payment}</p>
+                        </div>
+                        <button class="nav-btn" onclick="event.stopPropagation();window.open('https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}')">Rute</button>
+                    </div>
+                `;
+            }).join("");
+        }
+        
+        // Update markers (TANPA map.fitBounds biar map bebas digerakin)
+        if (map) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            
+            filtered.forEach(loc => {
+                const popup = `<b>${loc.name}</b><br>${loc.address}<br>💳 ${loc.payment}<br>📏 ${loc.distance.toFixed(1)} km`;
+                const m = L.marker([loc.lat, loc.lng]).addTo(map).bindPopup(popup);
+                markers.push(m);
+            });
+        }
+    }
+    
+    // Reset view ke semua marker (bebas)
+    function resetToAllMarkers() {
+        if (allMarkersBounds && locations.length > 0) {
+            map.fitBounds(allMarkersBounds, { padding: [30, 30] });
+            showToast("🗺️ Menampilkan semua lokasi");
+        } else {
+            map.setView([userLat, userLng], 12);
+        }
+    }
+    
+    // Inisialisasi map (bisa digerakin bebas)
+    function initMap() {
+        map = L.map('map').setView([userLat, userLng], 12);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+        
+        // marker user (tanpa fit bounds)
+        const userMarker = L.marker([userLat, userLng], {
+            icon: L.divIcon({ html: '<div style="background:#ffcc00; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow:0 0 8px gold;"></div>' })
+        }).addTo(map).bindPopup("📍 Anda (default)");
+        
+        updateUI();
+        
+        // Optional: kasih tau user kalo map bisa digerakin
+        setTimeout(() => {
+            showToast("🖱️ Map bisa digeser & di-zoom bebas!");
+        }, 1500);
+    }
+    
+    function showToast(msg) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.innerText = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+    
+    // EVENT LISTENERS
+    document.getElementById("search-input").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        updateUI();
+    });
+    
+    document.getElementById("locate-btn").onclick = () => {
+        if (navigator.geolocation) {
+            showToast("📍 Mendapatkan lokasi Anda...");
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userLat = pos.coords.latitude;
+                    userLng = pos.coords.longitude;
+                    map.setView([userLat, userLng], 14);
+                    updateUI();
+                    showToast("✅ Lokasi diperbarui, scan radius 5km");
+                },
+                () => showToast("❌ Izin lokasi ditolak.")
+            );
+        } else {
+            showToast("❌ Browser tidak support GPS.");
+        }
+    };
+    
+    document.getElementById("reset-view-btn").onclick = () => {
+        resetToAllMarkers();
+    };
+    
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentFilter = btn.dataset.filter;
+            updateUI();
+        };
+    });
+    
+    // JALANKAN
+    loadData().then(() => initMap());
+</script>
+</body>
+</html><body>
 
 <div id="map"></div>
 
